@@ -1,1 +1,700 @@
-primeiro culto play!
+[interfacecontroladora.java = import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Properties;
+import java.nio.file.Files;
+
+// Importação essencial para o VLCJ funcionar
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
+
+public class InterfaceControladora extends JFrame {
+    private JanelaProjetor projetor;
+    private JanelaBiblia janelaBiblia;
+    private JanelaPreview janelaPreview;
+    
+    // Listas e Modelos
+    private JList<String> listaSlides, listaMusicas, listaFundos, listaImagens, listaVideos, listaArquivosMusicas; 
+    private DefaultListModel<String> modeloSlides, modeloMusicas, modeloFundos, modeloImagens, modeloVideos, modeloArquivosMusicas; 
+    
+    // Lista original para busca não perder os dados
+    private List<String> todasAsMusicas = new ArrayList<>();
+
+    // Aba Apresentação Rápida
+    private JTextArea areaTextoRapido;
+    private JComboBox<String> comboFundoRapido;
+    
+    private Timer timerAnuncios;
+    private int indiceAnuncioAtual = 0;
+    private List<File> listaArquivosAnuncios = new ArrayList<>();
+
+    private Color corFundoApp;
+    private Color corLetraProjetor;
+    private int tamanhoLetraProjetor;
+    private int posicaoMargemProjetor; 
+
+public static void main(String[] args) {
+    String diretorioAtual = System.getProperty("user.dir");
+    System.setProperty("jna.library.path", diretorioAtual);
+
+    boolean encontrado = new NativeDiscovery().discover();
+    System.out.println("VLC Pareado: " + (encontrado ? "SIM" : "NÃO"));
+
+    javax.swing.SwingUtilities.invokeLater(() -> {
+        exibirSplashScreen();
+    });
+}
+
+private static void exibirSplashScreen() {
+        JWindow splash = new JWindow();
+        splash.setSize(450, 280); 
+        splash.setLocationRelativeTo(null); 
+        
+        JPanel painel = new JPanel(new BorderLayout());
+        painel.setBackground(new Color(20, 20, 20)); 
+        painel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 2)); 
+
+        JLabel titulo = new JLabel("CultoPlay Pro", SwingConstants.CENTER);
+        titulo.setFont(new Font("Arial", Font.BOLD, 36));
+        titulo.setForeground(Color.WHITE);
+        titulo.setBorder(new EmptyBorder(20, 10, 10, 10));
+
+        JLabel sub = new JLabel("Iniciando motores...", SwingConstants.CENTER);
+        sub.setFont(new Font("Arial", Font.ITALIC, 14));
+        sub.setForeground(Color.LIGHT_GRAY);
+        sub.setBorder(new EmptyBorder(5, 10, 5, 10));
+
+        // --- BARRA DE PROGRESSO ---
+        JProgressBar barra = new JProgressBar(0, 100);
+        barra.setStringPainted(true);
+        barra.setBackground(new Color(40, 40, 40));
+        barra.setForeground(Color.CYAN);
+        barra.setBorder(BorderFactory.createEmptyBorder());
+        barra.setPreferredSize(new Dimension(450, 20));
+
+        try {
+            ImageIcon icone = new ImageIcon("LOGOS/icone.png");
+            Image img = icone.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+            JLabel imgLabel = new JLabel(new ImageIcon(img), SwingConstants.CENTER);
+            painel.add(imgLabel, BorderLayout.CENTER);
+        } catch (Exception e) { }
+
+        JPanel painelSul = new JPanel(new BorderLayout());
+        painelSul.setOpaque(false);
+        painelSul.add(sub, BorderLayout.NORTH);
+        painelSul.add(barra, BorderLayout.SOUTH);
+
+        painel.add(titulo, BorderLayout.NORTH);
+        painel.add(painelSul, BorderLayout.SOUTH);
+
+        splash.add(painel);
+        splash.setVisible(true);
+
+        // --- LÓGICA DE CARREGAMENTO (SwingWorker) ---
+        SwingWorker<Void, Integer> worker = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                String[] etapas = {
+                    "Verificando atualizações...", // Adicionado para o update
+                    "Localizando VLC...", 
+                    "Carregando Bibliotecas...", 
+                    "Lendo welcome.dat...", 
+                    "Preparando Console...", 
+                    "Iniciando GUI..."
+                };
+
+                for (int i = 0; i <= 100; i++) {
+                    Thread.sleep(30); 
+                    publish(i); 
+                    
+                    if (i == 5) {
+                        sub.setText(etapas[0]);
+                        // Update.verificarAtualizacao(); // Comentado para não dar erro se a classe não existir
+                    }
+                    if (i == 20) sub.setText(etapas[1]);
+                    if (i == 40) sub.setText(etapas[2]);
+                    if (i == 60) sub.setText(etapas[3]);
+                    if (i == 85) sub.setText(etapas[4]);
+                    if (i == 98) sub.setText(etapas[5]);
+                }
+                return null;
+            }
+
+            @Override
+            protected void process(List<Integer> chunks) {
+                barra.setValue(chunks.get(chunks.size() - 1));
+            }
+
+            @Override
+            protected void done() {
+                splash.dispose();
+                new InterfaceControladora();
+            }
+        };
+
+        worker.execute();
+    }
+
+public InterfaceControladora() {
+        verificarConfiguracoes();
+
+        setTitle("CultoPlay Pro - Console de Comando");
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        getContentPane().setBackground(corFundoApp);
+
+        try {
+            setIconImage(Toolkit.getDefaultToolkit().getImage("LOGOS/icone.png"));
+        } catch (Exception e) {
+            System.out.println("Aviso: LOGOS/icone.png não encontrado.");
+        }
+
+        projetor = new JanelaProjetor();
+        
+        projetor.atualizarCor(corLetraProjetor);
+        projetor.atualizarFonte(tamanhoLetraProjetor);
+        projetor.atualizarPosicaoY(posicaoMargemProjetor);
+
+        janelaPreview = new JanelaPreview();
+        janelaBiblia = new JanelaBiblia(new BibliaService(), projetor, this);
+
+        setJMenuBar(criarMenuBar());
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                int op = JOptionPane.showConfirmDialog(null, 
+                    "Deseja fechar o CultoPlay? O projetor será desligado.", 
+                    "Sair", JOptionPane.YES_NO_OPTION);
+                if (op == JOptionPane.YES_OPTION) {
+                    System.exit(0); 
+                }
+            }
+        });
+
+        setLayout(new BorderLayout(10, 10));
+
+        add(criarEsquerda(), BorderLayout.WEST);
+        add(criarCentro(), BorderLayout.CENTER);
+        add(criarDireita(), BorderLayout.EAST);
+
+        configurarAtalhosGlobais();
+
+        setVisible(true); 
+        this.toFront();
+        this.requestFocus();
+    }
+
+    private void verificarConfiguracoes() {
+        File arquivo = new File("welcome.dat");
+        Properties prop = new Properties();
+        if (arquivo.exists()) {
+            try (FileInputStream in = new FileInputStream(arquivo)) {
+                prop.load(in);
+                corFundoApp = Color.decode(prop.getProperty("corFundo", "#141414"));
+                corLetraProjetor = Color.decode(prop.getProperty("corLetra", "#FFFFFF"));
+                tamanhoLetraProjetor = Integer.parseInt(prop.getProperty("tamanhoLetra", "60"));
+                posicaoMargemProjetor = Integer.parseInt(prop.getProperty("margemY", "50"));
+            } catch (Exception e) { aplicarPadroesIniciais(); }
+        } else { abrirJanelaPersonalizacaoInicial(); }
+    }
+
+    private void abrirJanelaPersonalizacaoInicial() {
+        aplicarPadroesIniciais();
+        
+        JDialog dialog = new JDialog((Frame)null, "Bem-vindo!", true);
+        dialog.setSize(400, 350);
+        dialog.setLocationRelativeTo(null);
+        dialog.setLayout(new BorderLayout());
+        dialog.getContentPane().setBackground(new Color(30, 30, 30));
+
+        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                int op = JOptionPane.showConfirmDialog(dialog, 
+                    "Deseja sair do instalador do Culto Play? Todo progresso será perdido.", 
+                    "Sair do Instalador", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (op == JOptionPane.YES_OPTION) {
+                    System.exit(0); 
+                }
+            }
+        });
+
+        JLabel lblTitulo = new JLabel("✨ Configurar CultoPlay ✨", SwingConstants.CENTER);
+        lblTitulo.setForeground(Color.WHITE);
+        lblTitulo.setFont(new Font("Arial", Font.BOLD, 18));
+        lblTitulo.setBorder(new EmptyBorder(20, 10, 20, 10));
+        dialog.add(lblTitulo, BorderLayout.NORTH);
+
+        JPanel painelBotoes = new JPanel(new GridLayout(3, 1, 10, 10));
+        painelBotoes.setOpaque(false);
+        painelBotoes.setBorder(new EmptyBorder(10, 30, 10, 30));
+
+        JButton btnFundo = new JButton("1. Cor do Programa");
+        btnFundo.addActionListener(e -> {
+            Color c = JColorChooser.showDialog(dialog, "Cor do Programa", corFundoApp);
+            if(c != null) corFundoApp = c;
+        });
+
+        JButton btnLetra = new JButton("2. Cor da Letra (Telão)");
+        btnLetra.addActionListener(e -> {
+            Color c = JColorChooser.showDialog(dialog, "Cor da Letra", corLetraProjetor);
+            if(c != null) corLetraProjetor = c;
+        });
+
+        painelBotoes.add(btnFundo);
+        painelBotoes.add(btnLetra);
+        dialog.add(painelBotoes, BorderLayout.CENTER);
+
+        JButton btnSalvar = new JButton("INICIAR ▶️");
+        btnSalvar.setBackground(new Color(0, 150, 0));
+        btnSalvar.setForeground(Color.WHITE);
+        btnSalvar.addActionListener(e -> {
+            salvarConfiguracoes();
+            dialog.dispose();
+        });
+        dialog.add(btnSalvar, BorderLayout.SOUTH);
+
+        dialog.setVisible(true);
+    }
+
+    private void salvarConfiguracoes() {
+        Properties prop = new Properties();
+        try (FileOutputStream out = new FileOutputStream("welcome.dat")) {
+            prop.setProperty("corFundo", String.format("#%02x%02x%02x", corFundoApp.getRed(), corFundoApp.getGreen(), corFundoApp.getBlue()));
+            prop.setProperty("corLetra", String.format("#%02x%02x%02x", corLetraProjetor.getRed(), corLetraProjetor.getGreen(), corLetraProjetor.getBlue()));
+            prop.setProperty("tamanhoLetra", String.valueOf(tamanhoLetraProjetor));
+            prop.setProperty("margemY", String.valueOf(posicaoMargemProjetor));
+            prop.store(out, null);
+        } catch (IOException e) { e.printStackTrace(); }
+    }
+
+    private void aplicarPadroesIniciais() {
+        corFundoApp = new Color(20, 20, 20);
+        corLetraProjetor = Color.WHITE;
+        tamanhoLetraProjetor = 60;
+        posicaoMargemProjetor = 50;
+    }
+
+    public void transitarParaBiblia() {
+        if (janelaBiblia.isVisible()) return;
+        janelaBiblia.setOpacity(0f);
+        janelaBiblia.setVisible(true);
+        Timer timer = new Timer(15, e -> {
+            float alfa = janelaBiblia.getOpacity() + 0.1f;
+            if (alfa >= 1f) {
+                janelaBiblia.setOpacity(1f);
+                this.setVisible(false);
+                ((Timer)e.getSource()).stop();
+            } else { janelaBiblia.setOpacity(alfa); }
+        });
+        timer.start();
+    }
+
+    public void transitarParaConsole() {
+        this.setVisible(true);
+        Timer timer = new Timer(15, e -> {
+            float alfa = janelaBiblia.getOpacity() - 0.1f;
+            if (alfa <= 0f) {
+                janelaBiblia.setVisible(false);
+                janelaBiblia.setOpacity(1f);
+                ((Timer)e.getSource()).stop();
+            } else { janelaBiblia.setOpacity(alfa); }
+        });
+        timer.start();
+    }
+
+    private JPanel criarEsquerda() {
+        JPanel painel = new JPanel(new BorderLayout());
+        painel.setPreferredSize(new Dimension(300, 0));
+        painel.setBackground(new Color(30, 30, 30));
+        painel.setBorder(BorderFactory.createTitledBorder(null, "REPERTÓRIO", 0, 0, null, Color.CYAN));
+
+        JTabbedPane abas = new JTabbedPane();
+        
+        JPanel painelMusicasCompleto = new JPanel(new BorderLayout());
+        
+        JTextField campoBusca = new JTextField();
+        campoBusca.setBackground(new Color(50, 50, 50));
+        campoBusca.setForeground(Color.YELLOW);
+        campoBusca.setCaretColor(Color.WHITE);
+        campoBusca.setBorder(BorderFactory.createTitledBorder(null, "BUSCAR (TÍTULO OU LETRA)", 0, 0, null, Color.GRAY));
+
+        modeloMusicas = new DefaultListModel<>();
+        carregarListaArquivos("musicas", modeloMusicas);
+        
+        todasAsMusicas.clear();
+        for(int i=0; i<modeloMusicas.size(); i++) todasAsMusicas.add(modeloMusicas.get(i));
+
+        listaMusicas = new JList<>(modeloMusicas);
+        configurarEstiloLista(listaMusicas);
+        listaMusicas.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if(e.getClickCount() == 2) carregarMusica(listaMusicas.getSelectedValue());
+            }
+        });
+
+        campoBusca.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { filtrar(); }
+            public void removeUpdate(DocumentEvent e) { filtrar(); }
+            public void changedUpdate(DocumentEvent e) { filtrar(); }
+            
+            private void filtrar() {
+                String busca = campoBusca.getText().toLowerCase();
+                modeloMusicas.clear();
+                for (String nome : todasAsMusicas) {
+                    if (nome.toLowerCase().contains(busca)) {
+                        modeloMusicas.addElement(nome);
+                        continue;
+                    }
+                    try {
+                        String conteudo = new String(Files.readAllBytes(new File("musicas/" + nome).toPath())).toLowerCase();
+                        if (conteudo.contains(busca)) {
+                            modeloMusicas.addElement(nome);
+                        }
+                    } catch (Exception ex) {}
+                }
+            }
+        });
+
+        painelMusicasCompleto.add(campoBusca, BorderLayout.NORTH);
+        painelMusicasCompleto.add(new JScrollPane(listaMusicas), BorderLayout.CENTER);
+        abas.addTab("🎶 LETRAS", painelMusicasCompleto);
+
+        modeloImagens = new DefaultListModel<>();
+        carregarListaArquivos("IMAGENS", modeloImagens);
+        listaImagens = new JList<>(modeloImagens);
+        configurarEstiloLista(listaImagens);
+        listaImagens.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if(e.getClickCount() == 2) exibirImagemDireta(listaImagens.getSelectedValue());
+            }
+        });
+        abas.addTab("🖼️ IMAGENS", new JScrollPane(listaImagens));
+
+        modeloVideos = new DefaultListModel<>();
+        carregarListaArquivos("VIDEOS", modeloVideos); 
+        listaVideos = new JList<>(modeloVideos);
+        configurarEstiloLista(listaVideos);
+        listaVideos.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if(e.getClickCount() == 2 && listaVideos.getSelectedValue() != null) {
+                    reproduzirVideo(listaVideos.getSelectedValue());
+                }
+            }
+        });
+        abas.addTab("🎬 VÍDEOS", new JScrollPane(listaVideos));
+
+        // --- NOVA ABA DE MÚSICAS (Arquivos de Áudio) ---
+        modeloArquivosMusicas = new DefaultListModel<>();
+        carregarListaArquivos("musicas", modeloArquivosMusicas); // Supondo que a pasta é "musicas"
+        listaArquivosMusicas = new JList<>(modeloArquivosMusicas);
+        configurarEstiloLista(listaArquivosMusicas);
+        listaArquivosMusicas.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if(e.getClickCount() == 2 && listaArquivosMusicas.getSelectedValue() != null) {
+                    // Aqui você chamaria um método para tocar música se tiver um player de áudio
+                    System.out.println("Tocar música: " + listaArquivosMusicas.getSelectedValue());
+                }
+            }
+        });
+        abas.addTab("🎵 MÚSICAS", new JScrollPane(listaArquivosMusicas));
+
+        JPanel painelRapida = new JPanel(new BorderLayout(5, 5));
+        painelRapida.setBackground(new Color(40, 40, 40));
+        areaTextoRapido = new JTextArea();
+        areaTextoRapido.setLineWrap(true);
+        areaTextoRapido.setWrapStyleWord(true);
+        
+        comboFundoRapido = new JComboBox<>();
+        comboFundoRapido.addItem("Fundo Preto");
+        File pastaBg = new File("backgrounds");
+        if(pastaBg.exists()) for(File f : pastaBg.listFiles()) comboFundoRapido.addItem(f.getName());
+
+        JButton btnProj = new JButton("PROJETAR AGORA 🚀");
+        btnProj.addActionListener(e -> projetarApresentacaoRapida());
+        
+        JPanel pSul = new JPanel(new GridLayout(2,1));
+        pSul.add(comboFundoRapido);
+        pSul.add(btnProj);
+        
+        painelRapida.add(new JScrollPane(areaTextoRapido), BorderLayout.CENTER);
+        painelRapida.add(pSul, BorderLayout.SOUTH);
+        abas.addTab("⚡ RÁPIDA", painelRapida);
+
+        JButton btnBiblia = new JButton("📖 BÍBLIA (F7)");
+        btnBiblia.addActionListener(e -> transitarParaBiblia());
+
+        painel.add(abas, BorderLayout.CENTER);
+        painel.add(btnBiblia, BorderLayout.SOUTH);
+        return painel;
+    }
+
+    private JPanel criarCentro() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(new Color(40, 40, 40));
+        p.setBorder(BorderFactory.createTitledBorder(null, "PROJEÇÃO ATUAL", 0, 0, null, Color.WHITE));
+
+        modeloSlides = new DefaultListModel<>();
+        listaSlides = new JList<>(modeloSlides);
+        listaSlides.setFont(new Font("Arial", Font.BOLD, 26));
+        listaSlides.setBackground(new Color(30, 30, 30));
+        listaSlides.setForeground(Color.WHITE);
+        
+        listaSlides.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) enviarTextoAoProjetor();
+            }
+        });
+
+        p.add(new JScrollPane(listaSlides), BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPanel criarDireita() {
+        JPanel p = new JPanel();
+        p.setPreferredSize(new Dimension(300, 0));
+        p.setBackground(new Color(35, 35, 35));
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+
+        JButton btnPreview = new JButton("📺 JANELA PREVIEW");
+        btnPreview.addActionListener(e -> janelaPreview.setVisible(true));
+
+        JButton btnConfig = new JButton("⚙️ CONFIGURAÇÕES (LIMP)");
+        btnConfig.addActionListener(e -> abrirJanelaConfiguracoes());
+
+        JButton btnBlack = new JButton("BLACKOUT (ESC)");
+        btnBlack.setBackground(Color.RED);
+        btnBlack.setForeground(Color.WHITE);
+        btnBlack.addActionListener(e -> executarBlackout());
+
+        modeloFundos = new DefaultListModel<>();
+        carregarListaArquivos("backgrounds", modeloFundos);
+        listaFundos = new JList<>(modeloFundos);
+        configurarEstiloLista(listaFundos);
+        listaFundos.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if(e.getClickCount() == 2) projetor.setFundoGif("backgrounds/" + listaFundos.getSelectedValue());
+            }
+        });
+
+        p.add(Box.createVerticalStrut(10));
+        p.add(btnPreview);
+        p.add(Box.createVerticalStrut(10));
+        p.add(btnConfig);
+        p.add(Box.createVerticalStrut(10));
+        p.add(btnBlack);
+        p.add(Box.createVerticalStrut(20));
+        p.add(new JLabel("FUNDOS GIF:"));
+        p.add(new JScrollPane(listaFundos));
+
+        return p;
+    }
+
+    private void abrirJanelaConfiguracoes() {
+        JDialog config = new JDialog(this, "Ajustes do Telão", false);
+        config.setSize(400, 450);
+        config.setLocationRelativeTo(this);
+        config.setLayout(new GridLayout(7, 1, 10, 10));
+
+        JButton btnCor = new JButton("Mudar Cor da Letra");
+        btnCor.addActionListener(e -> {
+            Color c = JColorChooser.showDialog(config, "Cor", corLetraProjetor);
+            if(c != null) { corLetraProjetor = c; projetor.atualizarCor(c); salvarConfiguracoes(); }
+        });
+
+        JSlider sliderTam = new JSlider(20, 150, tamanhoLetraProjetor);
+        sliderTam.addChangeListener(e -> {
+            tamanhoLetraProjetor = sliderTam.getValue();
+            projetor.atualizarFonte(tamanhoLetraProjetor);
+            salvarConfiguracoes();
+        });
+
+        JSlider sliderPos = new JSlider(0, 400, posicaoMargemProjetor);
+        sliderPos.addChangeListener(e -> {
+            posicaoMargemProjetor = sliderPos.getValue();
+            projetor.atualizarPosicaoY(posicaoMargemProjetor);
+            salvarConfiguracoes();
+        });
+
+        JButton btnLimp = new JButton("♻️ RESTAURAR PADRÕES (LIMP)");
+        btnLimp.setBackground(new Color(150, 0, 0));
+        btnLimp.setForeground(Color.WHITE);
+        btnLimp.addActionListener(e -> {
+            aplicarPadroesIniciais();
+            projetor.atualizarCor(corLetraProjetor);
+            projetor.atualizarFonte(tamanhoLetraProjetor);
+            projetor.atualizarPosicaoY(posicaoMargemProjetor);
+            salvarConfiguracoes();
+            JOptionPane.showMessageDialog(config, "Configurações resetadas!");
+            config.dispose();
+        });
+
+        config.add(new JLabel("Cor da Letra:", SwingConstants.CENTER));
+        config.add(btnCor);
+        config.add(new JLabel("Tamanho da Letra:", SwingConstants.CENTER));
+        config.add(sliderTam);
+        config.add(new JLabel("Margem Vertical:", SwingConstants.CENTER));
+        config.add(sliderPos);
+        config.add(btnLimp);
+
+        config.setVisible(true);
+    }
+
+    private void carregarMusica(String arq) {
+        try {
+            List<String> linhas = java.nio.file.Files.readAllLines(new File("musicas/" + arq).toPath());
+            List<String> slides = new ArrayList<>();
+            for (int i = 2; i < linhas.size(); i++) {
+                if (!linhas.get(i).trim().isEmpty()) slides.add(linhas.get(i).trim());
+            }
+            if (modeloFundos != null && !modeloFundos.isEmpty()) {
+                listaFundos.setSelectedIndex(0);
+                projetor.setFundoGif("backgrounds/" + modeloFundos.get(0));
+            }
+            prepararMusica(slides);
+            listaSlides.setBackground(new Color(30, 60, 30)); 
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void prepararMusica(List<String> slides) {
+        modeloSlides.clear();
+        for (String s : slides) modeloSlides.addElement(s);
+        if (!modeloSlides.isEmpty()) {
+            listaSlides.setSelectedIndex(0);
+            enviarTextoAoProjetor();
+        }
+    }
+
+    private void enviarTextoAoProjetor() {
+        String s = listaSlides.getSelectedValue();
+        if (s != null) {
+            pararLoopAnuncios();
+            projetor.atualizarTexto(s);
+            atualizarMonitor(s);
+        }
+    }
+
+    private void executarBlackout() {
+        pararLoopAnuncios();
+        projetor.pararVideo(); 
+        projetor.atualizarTexto("");
+        projetor.limparFundo();
+        atualizarMonitor("");
+        listaSlides.setBackground(new Color(30, 30, 30));
+    }
+
+    private void projetarApresentacaoRapida() {
+        String texto = areaTextoRapido.getText();
+        String bg = (String) comboFundoRapido.getSelectedItem();
+        if(bg.equals("Fundo Preto")) projetor.limparFundo();
+        else projetor.setFundoGif("backgrounds/" + bg);
+        projetor.atualizarTexto(texto);
+        atualizarMonitor(texto);
+    }
+
+    private void exibirImagemDireta(String arq) {
+        pararLoopAnuncios();
+        projetor.pararVideo(); 
+        projetor.limparFundo();
+        projetor.setFundoGif("IMAGENS/" + arq);
+        projetor.atualizarTexto("");
+    }
+    
+    private void reproduzirVideo(String arq) {
+        pararLoopAnuncios();
+        projetor.atualizarTexto(""); 
+        File videoFile = new File("VIDEOS/" + arq);
+        String caminhoAbsoluto = videoFile.getAbsolutePath();
+        if (!projetor.isVisible()) projetor.setVisible(true);
+        projetor.tocarVideo(caminhoAbsoluto);
+        atualizarMonitor("🎬 VÍDEO: " + arq);
+    }
+
+    private void carregarListaArquivos(String pasta, DefaultListModel<String> modelo) {
+        File f = new File(pasta);
+        if(!f.exists()) f.mkdir();
+        File[] arqs = f.listFiles();
+        if(arqs != null) for(File file : arqs) if(!file.isDirectory()) modelo.addElement(file.getName());
+    }
+
+    private void configurarEstiloLista(JList list) {
+        list.setBackground(new Color(45, 45, 45));
+        list.setForeground(Color.WHITE);
+        list.setFont(new Font("Arial", Font.PLAIN, 14));
+    }
+
+    public void atualizarMonitor(String t) {
+        if(janelaPreview != null) janelaPreview.atualizar(t);
+    }
+
+    private JMenuBar criarMenuBar() {
+        JMenuBar mb = new JMenuBar();
+        JMenu m = new JMenu("ANÚNCIOS");
+        JMenuItem i1 = new JMenuItem("▶️ Iniciar Loop");
+        i1.addActionListener(e -> iniciarLoopAnuncios());
+        JMenuItem i2 = new JMenuItem("⏹️ Parar");
+        i2.addActionListener(e -> pararLoopAnuncios());
+        m.add(i1); m.add(i2); mb.add(m);
+        return mb;
+    }
+
+    private void iniciarLoopAnuncios() {
+        pararLoopAnuncios();
+        projetor.pararVideo();
+        File pasta = new File("anuncios");
+        if(!pasta.exists()) return;
+        File[] arqs = pasta.listFiles();
+        if(arqs == null || arqs.length == 0) return;
+        listaArquivosAnuncios = Arrays.asList(arqs);
+        timerAnuncios = new Timer(5000, e -> {
+            if(indiceAnuncioAtual >= listaArquivosAnuncios.size()) indiceAnuncioAtual = 0;
+            projetor.setFundoGif(listaArquivosAnuncios.get(indiceAnuncioAtual).getAbsolutePath());
+            projetor.atualizarTexto("");
+            indiceAnuncioAtual++;
+        });
+        timerAnuncios.start();
+    }
+
+    private void pararLoopAnuncios() {
+        if(timerAnuncios != null) timerAnuncios.stop();
+    }
+
+    private void configurarAtalhosGlobais() {
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                int code = e.getKeyCode();
+                if (code == KeyEvent.VK_F7) transitarParaBiblia();
+                if (code == KeyEvent.VK_ESCAPE) executarBlackout();
+                if (code == KeyEvent.VK_DOWN || code == KeyEvent.VK_RIGHT) {
+                    int prox = listaSlides.getSelectedIndex() + 1;
+                    if (prox < modeloSlides.size()) {
+                        listaSlides.setSelectedIndex(prox);
+                        listaSlides.ensureIndexIsVisible(prox);
+                        enviarTextoAoProjetor();
+                    }
+                    return true; 
+                }
+                if (code == KeyEvent.VK_UP || code == KeyEvent.VK_LEFT) {
+                    int prev = listaSlides.getSelectedIndex() - 1;
+                    if (prev >= 0) {
+                        listaSlides.setSelectedIndex(prev);
+                        listaSlides.ensureIndexIsVisible(prev);
+                        enviarTextoAoProjetor();
+                    }
+                    return true;
+                }
+            }
+            return false;
+        });
+    } 
+} ]
+
+version = 1.0.0
