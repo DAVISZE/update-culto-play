@@ -1,10 +1,24 @@
-version: 1.5
+version: 2.0
 
-{começo}
+Este texto fora dos parenteses o Java vai ignorar completamente.
+Ele serve apenas para voce deixar avisos ou logs aqui no GitHub.
 
-(exemplo.java = 
-public class Exemplo {
-    // seu codigo aqui
+{começo dos arquivos}
+
+(Ferramenta.java =
+public class Ferramenta {
+    public static void msg() {
+        System.out.println("Arquivo 1 baixado com sucesso!");
+    }
+}
+)
+
+(Teste.java =
+public class Teste {
+    public static void main(String[] args) {
+        System.out.println("Arquivo 2 baixado com sucesso!");
+        System.out.println("Versao atual: 2.0");
+    }
 }
 )
 
