@@ -1,21 +1,33 @@
-version: 3.0
+version: 4.0
 
-Este é um arquivo de teste do sistema de atualização.
-Se o programa detectar versão 2.0, significa que a verificação funcionou.
+Arquivo de atualização do CultoPlay Pro
+Se você está vendo isso, o sistema de update está funcionando.
+
+{inicio}
 
 (Ferramenta.java =
 public class Ferramenta {
+
     public static void msg() {
-        System.out.println("Arquivo Ferramenta baixado com sucesso!");
+        System.out.println("Ferramenta carregada com sucesso!");
     }
+
 }
 )
 
 (Teste.java =
 public class Teste {
+
     public static void main(String[] args) {
-        System.out.println("Arquivo Teste baixado com sucesso!");
-        System.out.println("Versao atual: 2.0");
+
+        System.out.println("Arquivo Teste funcionando!");
+        System.out.println("Versao atual: 3.0");
+
+        Ferramenta.msg();
+
     }
+
 }
 )
+
+{fim}
