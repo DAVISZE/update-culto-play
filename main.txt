@@ -1,14 +1,12 @@
-version: 2.0
+version: 3.0
 
-Este texto fora dos parenteses o Java vai ignorar completamente.
-Ele serve apenas para voce deixar avisos ou logs aqui no GitHub.
-
-{começo dos arquivos}
+Este é um arquivo de teste do sistema de atualização.
+Se o programa detectar versão 2.0, significa que a verificação funcionou.
 
 (Ferramenta.java =
 public class Ferramenta {
     public static void msg() {
-        System.out.println("Arquivo 1 baixado com sucesso!");
+        System.out.println("Arquivo Ferramenta baixado com sucesso!");
     }
 }
 )
@@ -16,10 +14,8 @@ public class Ferramenta {
 (Teste.java =
 public class Teste {
     public static void main(String[] args) {
-        System.out.println("Arquivo 2 baixado com sucesso!");
+        System.out.println("Arquivo Teste baixado com sucesso!");
         System.out.println("Versao atual: 2.0");
     }
 }
 )
-
-{fim do codigo}
